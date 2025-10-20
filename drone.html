@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AeroScout Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .defect-card {
+            border-left: 4px solid #e74c3c;
+            background: #ffe6e6;
+        }
+        .mission-card {
+            border-left: 4px solid #3498db;
+            background: #e6f7ff;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        h2 {
+            color: #34495e;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚁 AeroScout Dashboard</h1>
+
+        <div class="stats-grid" id="stats">
+            <div class="loading">Загрузка статистики...</div>
+        </div>
+
+        <h2>📋 Последние миссии</h2>
+        <div id="missions">
+            <div class="loading">Загрузка миссий...</div>
+        </div>
+
+        <h2>🔍 Обнаруженные дефекты</h2>
+        <div id="defects">
+            <div class="loading">Загрузка дефектов...</div>
+        </div>
+    </div>
+
+    <script>
+        // 🔧 НАСТРОЙКА: замените на ваш URL API
+        const API_BASE_URL = 'http://localhost:8000/api';
+        // ИЛИ для онлайн версии:
+        // const API_BASE_URL = 'https://your-backend.herokuapp.com/api';
+
+        // 📊 Тестовые данные (используются если API недоступно)
+        const mockData = {
+            stats: {
+                total_missions: 12,
+                total_defects: 34,
+                total_flight_hours: 6.5,
+                defects_by_type: {
+                    crack: 18,
+                    rust: 16
+                }
+            },
+            missions: [
+                {
+                    mission_id: "mission_001",
+                    drone_id: "pioneer_001",
+                    location: "Строительная площадка №1",
+                    total_images: 45,
+                    defects_found: 3,
+                    flight_duration: 1250,
+                    created_at: "2024-01-15T10:30:00"
+                },
+                {
+                    mission_id: "mission_002",
+                    drone_id: "pioneer_001",
+                    location: "Мост через реку",
+                    total_images: 67,
+                    defects_found: 7,
+                    flight_duration: 1850,
+                    created_at: "2024-01-14T14:20:00"
+                }
+            ],
+            defects: [
+                {
+                    defect_id: "defect_001",
+                    defect_type: "crack",
+                    confidence: 0.87,
+                    location: "55.7558, 37.6173",
+                    timestamp: "2024-01-15T10:45:00"
+                },
+                {
+                    defect_id: "defect_002",
+                    defect_type: "rust",
+                    confidence: 0.92,
+                    location: "55.7559, 37.6174",
+                    timestamp: "2024-01-15T10:47:00"
+                }
+            ]
+        };
+
+        // 🚀 Основная функция загрузки данных
+        async function loadData() {
+            try {
+                console.log("🔄 Загрузка данных с API...");
+
+                // Пытаемся загрузить данные с API
+                const [statsResponse, missionsResponse, defectsResponse] = await Promise.all([
+                    fetch(API_BASE_URL + '/stats').catch(() => null),
+                    fetch(API_BASE_URL + '/missions?limit=5').catch(() => null),
+                    fetch(API_BASE_URL + '/defects?limit=10').catch(() => null)
+                ]);
+
+                let stats, missions, defects;
+
+                // Если API доступно - используем реальные данные
+                if (statsResponse && statsResponse.ok) {
+                    stats = await statsResponse.json();
+                    console.log("✅ Статистика загружена с API");
+                } else {
+                    stats = mockData.stats;
+                    console.log("⚠️ Используются тестовые данные (статистика)");
+                }
+
+                if (missionsResponse && missionsResponse.ok) {
+                    const missionsData = await missionsResponse.json();
+                    missions = missionsData.missions || [];
+                    console.log("✅ Миссии загружены с API");
+                } else {
+                    missions = mockData.missions;
+                    console.log("⚠️ Используются тестовые данные (миссии)");
+                }
+
+                if (defectsResponse && defectsResponse.ok) {
+                    const defectsData = await defectsResponse.json();
+                    defects = defectsData.defects || [];
+                    console.log("✅ Дефекты загружены с API");
+                } else {
+                    defects = mockData.defects;
+                    console.log("⚠️ Используются тестовые данные (дефекты)");
+                }
+
+                // Отрисовываем данные
+                renderStats(stats);
+                renderMissions(missions);
+                renderDefects(defects);
+
+            } catch (error) {
+                console.error('❌ Ошибка загрузки:', error);
+
+                // Если все упало - показываем тестовые данные
+                renderStats(mockData.stats);
+                renderMissions(mockData.missions);
+                renderDefects(mockData.defects);
+
+                // Показываем сообщение об ошибке
+                showError('API недоступно. Показаны тестовые данные.');
+            }
+        }
+
+        // 📈 Отрисовка статистики
+        function renderStats(stats) {
+            const statsContainer = document.getElementById('stats');
+
+            if (!stats) {
+                statsContainer.innerHTML = '<div class="error">Нет данных статистики</div>';
+                return;
+            }
+
+            statsContainer.innerHTML = `
+                <div class="card stat-card">
+                    <div class="stat-number">${stats.total_missions || 0}</div>
+                    <div class="stat-label">Всего миссий</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-number">${stats.total_defects || 0}</div>
+                    <div class="stat-label">Найдено дефектов</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-number">${stats.total_flight_hours || 0}</div>
+                    <div class="stat-label">Часов полёта</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-number">${stats.defects_by_type?.crack || 0}</div>
+                    <div class="stat-label">Трещин обнаружено</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-number">${stats.defects_by_type?.rust || 0}</div>
+                    <div class="stat-label">Участков ржавчины</div>
+                </div>
+            `;
+        }
+
+        // 📋 Отрисовка миссий
+        function renderMissions(missions) {
+            const missionsContainer = document.getElementById('missions');
+
+            if (!missions || missions.length === 0) {
+                missionsContainer.innerHTML = '<div class="card">Миссии не найдены</div>';
+                return;
+            }
+
+            missionsContainer.innerHTML = missions.map(mission => `
+                <div class="card mission-card">
+                    <strong>Миссия: ${mission.mission_id}</strong><br>
+                    <strong>Дрон:</strong> ${mission.drone_id} |
+                    <strong>Локация:</strong> ${mission.location}<br>
+                    <strong>Снимков:</strong> ${mission.total_images} |
+                    <strong>Дефектов:</strong> ${mission.defects_found}<br>
+                    <strong>Длительность:</strong> ${mission.flight_duration ? Math.round(mission.flight_duration/60) + ' мин' : 'N/A'} |
+                    <strong>Дата:</strong> ${new Date(mission.created_at).toLocaleString()}
+                </div>
+            `).join('');
+        }
+
+        // 🔍 Отрисовка дефектов
+        function renderDefects(defects) {
+            const defectsContainer = document.getElementById('defects');
+
+            if (!defects || defects.length === 0) {
+                defectsContainer.innerHTML = '<div class="card">Дефекты не обнаружены</div>';
+                return;
+            }
+
+            defectsContainer.innerHTML = defects.map(defect => `
+                <div class="card defect-card">
+                    <strong>Тип дефекта: ${defect.defect_type === 'crack' ? 'ТРЕЩИНА' : 'РЖАВЧИНА'}</strong><br>
+                    <strong>Уверенность:</strong> ${(defect.confidence * 100).toFixed(1)}%<br>
+                    <strong>Координаты:</strong> ${defect.location}<br>
+                    <strong>Время обнаружения:</strong> ${new Date(defect.timestamp).toLocaleString()}
+                </div>
+            `).join('');
+        }
+
+        // ❌ Показать сообщение об ошибке
+        function showError(message) {
+            // Создаем или находим контейнер для ошибок
+            let errorContainer = document.getElementById('error-message');
+            if (!errorContainer) {
+                errorContainer = document.createElement('div');
+                errorContainer.id = 'error-message';
+                document.body.prepend(errorContainer);
+            }
+
+            errorContainer.innerHTML = `<div class="error">⚠️ ${message}</div>`;
+
+            // Автоматически скрываем через 5 секунд
+            setTimeout(() => {
+                errorContainer.innerHTML = '';
+            }, 5000);
+        }
+
+        // 🎯 Запускаем загрузку данных при загрузке страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("🚀 AeroScout Dashboard запущен!");
+            loadData(); // Первая загрузка
+
+            // Обновляем данные каждые 10 секунд
+            setInterval(loadData, 10000);
+        });
+    </script>
+</body>
+</html>
